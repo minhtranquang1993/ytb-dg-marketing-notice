@@ -3,11 +3,8 @@ const CONFIG = {
     TELEGRAM_BOT_TOKEN: '7784988616:AAEbCk6u5XF06sV5DbZnNH-nBCWFGos8Vk4',
     TELEGRAM_CHAT_ID: '1661694132',
     YOUTUBE_API_KEY: 'AIzaSyAE9bSRkxlAXExUg0iHgMzymdQAwVuZYhU',
-
-    // Cấu hình Zalo
-    ZALO_BOT_TOKEN: '1126030397610635170:TNbgrGdwbSTLmWejnKvKYAiNMbdQJnwXDpydWWqxIEUpsTjrxiqLMKVHJdWHGszE',
-    ZALO_USER_ID: '', // Chạy hàm getZaloChatId() sau khi nhắn tin cho bot để lấy ID này
-    ENABLE_ZALO: true
+    GEMINI_API_KEY: 'AIzaSyCbWu3MdfrK-dKIk-ThuBxTBr5BEiE44AU', // Key từ hình ảnh
+    WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzlcWxAzA-GPSplmJ8tWPoOX1lCLYOL9SWywezPJRsrH-W8io7rJwCFAWRS9pJ8LqWQ/exec' // Điền URL Web App của bạn vào đây sau khi Deploy
 };
 
 // Cấu hình icon cho từng loại kênh
@@ -185,10 +182,7 @@ function getKeywordStats() {
         }
 
         sendTelegramMessage(message);
-        // Gửi thống kê qua Zalo nếu bật
-        if (CONFIG.ENABLE_ZALO) {
-            sendZaloMessage(message);
-        }
+
         return keywordStats;
 
     } catch (error) {
@@ -252,15 +246,7 @@ function checkNewVideos() {
                             keywordResult.matchedKeywords
                         );
 
-                        // Gửi Zalo nếu bật
-                        if (CONFIG.ENABLE_ZALO) {
-                            sendZaloNotification(
-                                name,
-                                channel.type,
-                                latestVideo,
-                                keywordResult.matchedKeywords
-                            );
-                        }
+
 
                         // Cập nhật thống kê từ khóa nếu có từ khóa khớp
                         if (keywordResult.matchedKeywords.length > 0) {
@@ -367,7 +353,7 @@ function sendDailyReport() {
         if (videoCount > 0) {
             message += `Tổng cộng: ${videoCount} video mới`;
             sendTelegramMessage(message);
-            if (CONFIG.ENABLE_ZALO) sendZaloMessage(message);
+
         } else {
             Logger.log('Không có video nào khớp từ khóa được đăng trong ngày hôm qua');
         }
@@ -482,34 +468,6 @@ ${getChannelIcon(channelType)} <b>Tiêu đề:</b> ${video.title}
     }
 }
 
-// Gửi thông báo qua Zalo
-function sendZaloNotification(channelName, channelType, video, matchedKeywords = []) {
-    try {
-        const publishedDate = new Date(video.publishedAt);
-        const formattedDate = formatDate(publishedDate);
-
-        // Zalo có thể không hỗ trợ HTML full giống Telegram, nên dùng text thường hoặc format cơ bản
-        // Nếu dùng Telegram HTML, Zalo có thể hiển thị thẻ. Nên clean up.
-        // Tuy nhiên, để đơn giản, ta format dạng text dễ đọc.
-
-        let message = `🎥 Video mới từ ${channelName}
-📁 Loại: ${channelType}
-${getChannelIcon(channelType)} Tiêu đề: ${video.title}
-⏰ Đăng lúc: ${formattedDate}
-`;
-
-        if (matchedKeywords && matchedKeywords.length > 0) {
-            message += `🔑 Từ khóa khớp: ${matchedKeywords.join(", ")}\n`;
-        }
-
-        message += `🔗 Xem ngay: ${video.url}`;
-
-        sendZaloMessage(message);
-        Logger.log('Đã gửi thông báo Zalo cho video mới từ kênh: ' + channelName);
-    } catch (error) {
-        Logger.log('Lỗi khi gửi Zalo: ' + error.toString());
-    }
-}
 
 // Gửi tin nhắn Telegram
 function sendTelegramMessage(message) {
@@ -525,102 +483,6 @@ function sendTelegramMessage(message) {
     };
 
     UrlFetchApp.fetch(url, payload);
-}
-
-// Gửi tin nhắn Zalo
-function sendZaloMessage(message) {
-    if (!CONFIG.ZALO_USER_ID) {
-        Logger.log('Chưa cấu hình ZALO_USER_ID. Vui lòng chạy hàm getZaloChatId() để lấy ID.');
-        return;
-    }
-
-    const url = `https://bot-api.zaloplatforms.com/bot${CONFIG.ZALO_BOT_TOKEN}/sendMessage`;
-    const payload = {
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify({
-            chat_id: CONFIG.ZALO_USER_ID,
-            text: message
-        })
-    };
-
-    try {
-        const response = UrlFetchApp.fetch(url, payload);
-        Logger.log('Zalo Response: ' + response.getContentText());
-    } catch (e) {
-        Logger.log('Lỗi gửi tin nhắn Zalo: ' + e.toString());
-    }
-}
-
-// Hàm lấy Zalo Chat ID (chạy thủ công)
-function getZaloChatId() {
-    // Thử thêm tham số offset và timeout để tránh chờ lâu và lấy tin nhắn cũ
-    const url = `https://bot-api.zaloplatforms.com/bot${CONFIG.ZALO_BOT_TOKEN}/getUpdates?offset=0&limit=10&timeout=1000`;
-
-    Logger.log(`Đang gọi URL: ${url}`);
-
-    try {
-        const response = UrlFetchApp.fetch(url, {
-            "method": "get",
-            "muteHttpExceptions": true // Để không bị lỗi script nếu Zalo trả về 408
-        });
-
-        const responseCode = response.getResponseCode();
-        const responseText = response.getContentText();
-
-        Logger.log(`Response Code: ${responseCode}`);
-        Logger.log(`Response Body: ${responseText}`);
-
-        // Xử lý JSON
-        try {
-            const data = JSON.parse(responseText);
-
-            if (data.result && data.result.length > 0) {
-                Logger.log(`Tìm thấy ${data.result.length} updates.`);
-
-                // Duyệt ngược từ mới nhất về cũ nhất
-                for (let i = data.result.length - 1; i >= 0; i--) {
-                    const item = data.result[i];
-                    let userId = null;
-                    let userName = "Unknown";
-                    let messageContent = "";
-
-                    // Kiểm tra cấu trúc tin nhắn
-                    if (item.message) {
-                        messageContent = item.message.text || "No text";
-                        if (item.sender) {
-                            userId = item.sender.id;
-                            userName = item.sender.name || userName;
-                        } else if (item.from) {
-                            userId = item.from.id;
-                            userName = item.from.name || userName;
-                        }
-                    }
-
-                    if (userId) {
-                        Logger.log("--------------------------------------------------");
-                        Logger.log(`✅ TÌM THẤY TIN NHẮN TỪ: ${userName}`);
-                        Logger.log(`💬 Nội dung: "${messageContent}"`);
-                        Logger.log(`🔑 USER_ID (Copy ID này): ${userId}`);
-                        Logger.log("--------------------------------------------------");
-                    }
-                }
-
-                Logger.log("\nHãy copy USER_ID tìm được ở trên và dán vào biến CONFIG.ZALO_USER_ID");
-            } else {
-                if (data.error_code === 408) {
-                    Logger.log("⚠️ Lỗi 408 Timeout: Zalo không trả về tin nhắn mới nào trong khoảng thời gian chờ.");
-                    Logger.log("Gợi ý: Hãy mở Zalo, nhắn thêm 1 tin mới cho Bot, sau đó chạy lại hàm này ngay lập tức.");
-                } else {
-                    Logger.log("⚠️ Không tìm thấy tin nhắn nào. Đảm bảo bạn đã nhắn tin cho Bot trước khi chạy.");
-                }
-            }
-        } catch (e) {
-            Logger.log("Lỗi parse JSON: " + e.toString());
-        }
-    } catch (e) {
-        Logger.log('Lỗi khi gọi API: ' + e.toString());
-    }
 }
 
 // Định dạng ngày tháng
@@ -690,9 +552,7 @@ function testNotification() {
             // Kiểm tra gửi thông báo
             const channelName = getChannelName(testChannel.id);
             sendTelegramNotification(channelName, testChannel.type, latestVideo, keywordResult.matchedKeywords);
-            if (CONFIG.ENABLE_ZALO) {
-                sendZaloNotification(channelName, testChannel.type, latestVideo, keywordResult.matchedKeywords);
-            }
+
             Logger.log("Đã gửi thông báo test!");
         } else {
             Logger.log("Video không khớp từ khóa, không gửi thông báo test");
@@ -834,24 +694,178 @@ function testChannelIcons() {
 
     Logger.log("Hoàn thành kiểm tra icon kênh!");
 }
-/*
-============================================
-HƯỚNG DẪN SỬ DỤNG YOUTUBE NOTICE SCRIPT v2.2 (ZALO Update)
-============================================
 
-CẬP NHẬT MỚI v2.2:
-- Tích hợp thông báo qua Zalo Bot Platform
-- Thêm hàm getZaloChatId() để lấy ID người dùng
-- Thêm cấu hình CONFIG.ENABLE_ZALO
-
+/* 
 ============================================
-CÁCH LẤY ZALO USER ID:
-============================================
-1. Vào ứng dụng Zalo, tìm bot của bạn và nhắn một tin bất kỳ (ví dụ: "Hello bot")
-2. Trong trình soạn thảo Apps Script, chọn hàm "getZaloChatId" và nhấn Run.
-3. Xem Logs (Ctrl + Enter), tìm dòng: "----- TÌM THẤY USER ID -----"
-4. Copy ID đó và dán vào biến CONFIG.ZALO_USER_ID ở đầu file.
-5. Lưu file lại.
-
+Xử lý request từ Telegram (Webhook) & Gemini Integration
 ============================================
 */
+
+function doPost(e) {
+    try {
+        const update = JSON.parse(e.postData.contents);
+
+        if (update.message) {
+            const chatId = update.message.chat.id;
+            const text = update.message.text;
+
+            if (text) {
+                // Xử lý lệnh
+                if (text.startsWith('/')) {
+                    handleTelegramCommand(text, chatId);
+                }
+            }
+        }
+
+        return ContentService.createTextOutput(JSON.stringify({ method: "post" }));
+    } catch (error) {
+        Logger.log('Lỗi doPost: ' + error.toString());
+        return ContentService.createTextOutput(JSON.stringify({ error: error.toString() }));
+    }
+}
+
+// Xử lý các lệnh Telegram
+function handleTelegramCommand(commandText, chatId) {
+    // Tách lệnh và tham số
+    const parts = commandText.split(' ');
+    const command = parts[0];
+    const args = parts.slice(1);
+
+    if (command === '/tomtat') {
+        const url = args[0];
+        if (!url) {
+            sendTelegramMessageToChat(chatId, "⚠️ Vui lòng nhập URL cần tóm tắt.\nVí dụ: /tomtat https://example.com");
+            return;
+        }
+
+        sendTelegramMessageToChat(chatId, "⏳ Đang đọc và tóm tắt nội dung, vui lòng đợi...");
+
+        const summary = summarizeUrl(url);
+        sendTelegramMessageToChat(chatId, summary);
+    } else if (command === '/start') {
+        sendTelegramMessageToChat(chatId, "👋 Xin chào! Tôi là bot hỗ trợ Marketing.\n\nCác lệnh hiện có:\n/tomtat <url> - Tóm tắt nội dung bài viết từ URL");
+    }
+}
+
+// Hàm tóm tắt URL sử dụng Gemini
+function summarizeUrl(url) {
+    try {
+        // 1. Lấy nội dung trang web
+        // Lưu ý: Apps Script có giới hạn về việc fetch các trang web phức tạp (SPA, render bằng JS).
+        // Đây là cách lấy nội dung HTML cơ bản.
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+        const html = response.getContentText();
+
+        // Lọc bớt HTML tags để lấy text (cơ bản)
+        // Cách đơn giản nhất là xóa hết tag, nhưng có thể mất cấu trúc.
+        // Để tốt hơn, ta chỉ lấy phần body và xóa script/style.
+        let textContent = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, "")
+            .replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, "")
+            .replace(/<[^>]+>/g, "\n")
+            .replace(/\n\s*\n/g, "\n"); // Xóa dòng trống thừa
+
+        // Giới hạn độ dài text để tránh quá tải token Gemini (ví dụ 10000 ký tự)
+        if (textContent.length > 30000) {
+            textContent = textContent.substring(0, 30000) + "...";
+        }
+
+        const prompt = `Hãy tóm tắt và phân tích nội dung chính từ văn bản sau đây (được lấy từ URL: ${url}). 
+        
+        Yêu cầu:
+        1. Tóm tắt các ý chính quan trọng.
+        2. Phân tích các điểm nổi bật hoặc insight marketing nếu có.
+        3. Trình bày ngắn gọn, dễ hiểu bằng tiếng Việt use markdown format.
+        
+        Nội dung:
+        ${textContent}`;
+
+        return callGeminiApi(prompt);
+
+    } catch (error) {
+        return "❌ Không thể tóm tắt URL này. Có thể do lỗi mạng hoặc trang web chặn bot.\nLỗi: " + error.toString();
+    }
+}
+
+// Gọi Gemini API
+function callGeminiApi(prompt) {
+    try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+
+        const payload = {
+            contents: [{
+                parts: [{
+                    text: prompt
+                }]
+            }]
+        };
+
+        const options = {
+            method: 'post',
+            contentType: 'application/json',
+            payload: JSON.stringify(payload),
+            muteHttpExceptions: true
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const data = JSON.parse(response.getContentText());
+
+        if (data.candidates && data.candidates.length > 0) {
+            return data.candidates[0].content.parts[0].text;
+        } else {
+            Logger.log("Gemini Error: " + JSON.stringify(data));
+            return "❌ Có lỗi xảy ra với Gemini API. Vui lòng thử lại sau.";
+        }
+    } catch (error) {
+        Logger.log("Call Gemini API Error: " + error.toString());
+        return "❌ Lỗi kết nối đến Gemini API.";
+    }
+}
+
+// Hàm gửi tin nhắn đến Chat ID cụ thể (khác với hàm gửi mặc định dùng CONFIG.TELEGRAM_CHAT_ID)
+function sendTelegramMessageToChat(chatId, message) {
+    const url = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const payload = {
+        method: 'post',
+        payload: {
+            chat_id: chatId,
+            text: message,
+            parse_mode: 'Markdown', // Gemini trả về Markdown tốt hơn
+            disable_web_page_preview: true
+        }
+    };
+
+    try {
+        UrlFetchApp.fetch(url, payload);
+    } catch (e) {
+        // Fallback nếu lỗi Markdown
+        const payloadPlain = {
+            method: 'post',
+            payload: {
+                chat_id: chatId,
+                text: message,
+                parse_mode: '',
+                disable_web_page_preview: true
+            }
+        };
+        UrlFetchApp.fetch(url, payloadPlain);
+    }
+
+}
+
+// Hàm thiết lập Webhook (Chạy 1 lần sau khi deploy)
+function setWebhook() {
+    if (!CONFIG.WEB_APP_URL || CONFIG.WEB_APP_URL === '') {
+        Logger.log("❌ Lỗi: Bạn chưa điền URL Web App vào biến CONFIG.WEB_APP_URL");
+        return;
+    }
+
+    const url = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/setWebhook?url=${CONFIG.WEB_APP_URL}`;
+    const response = UrlFetchApp.fetch(url);
+    Logger.log(response.getContentText());
+}
+
+function deleteWebhook() {
+    const url = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/deleteWebhook`;
+    const response = UrlFetchApp.fetch(url);
+    Logger.log(response.getContentText());
+}

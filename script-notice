@@ -2,7 +2,7 @@
 const CONFIG = {
     TELEGRAM_BOT_TOKEN: '7784988616:AAEbCk6u5XF06sV5DbZnNH-nBCWFGos8Vk4',
     TELEGRAM_CHAT_ID: '1661694132',
-    YOUTUBE_API_KEY: 'AIzaSyAE9bSRkxlAXExUg0iHgMzymdQAwVuZYhU',
+    YOUTUBE_API_KEY: 'AIzaSyADR4G_MyHf8-M1yoZKo6_er5ebrT1_Lhg',
     GEMINI_API_KEY: 'AIzaSyCf-qhuwshjwnfyie_VxeNiq-YtWtPAB6U', // Key từ GitHub youtube-summarizer
     WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbyPa8QfMdp3K0alWSg5ntlaEfp7a31koxo7tVjrMaubGjN9v3SayBJlt2hivHNElmxN/exec' // URL Web App đã Deploy
 };
@@ -463,19 +463,9 @@ ${getChannelIcon(channelType)} <b>Tiêu đề:</b> ${video.title}
 
         message += `🔗 <b>Xem ngay:</b> ${video.url}`;
 
-        // Tự động tóm tắt video trước khi gửi
-        Logger.log('Đang tóm tắt video: ' + video.url);
-        const summary = summarizeYouTubeVideo(video.url);
-        if (summary) {
-            message += `\n\n📝 <b>Tóm tắt video:</b>\n\n${summary}`;
-            Logger.log('Đã thêm tóm tắt vào message');
-        } else {
-            Logger.log('Không thể tóm tắt video: ' + video.url);
-        }
-
-        // Gửi 1 message duy nhất chứa cả thông báo và tóm tắt
+        // Gửi thông báo
         sendTelegramMessage(message);
-        Logger.log('Đã gửi thông báo + tóm tắt Telegram cho video mới từ kênh: ' + channelName);
+        Logger.log('Đã gửi thông báo Telegram cho video mới từ kênh: ' + channelName);
     } catch (error) {
         Logger.log('Lỗi khi gửi Telegram: ' + error.toString());
     }

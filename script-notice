@@ -351,12 +351,14 @@ function sendDailyReport() {
         props.setProperty('CHANNEL_NAMES', JSON.stringify(channelNames));
 
         if (videoCount > 0) {
-            message += `Tổng cộng: ${videoCount} video mới`;
-            sendTelegramMessage(message);
-
+            message += `📊 Tổng cộng: ${videoCount} video mới`;
         } else {
+            message += `📭 Không có video mới nào từ các kênh theo dõi trong ngày hôm qua.`;
             Logger.log('Không có video nào khớp từ khóa được đăng trong ngày hôm qua');
         }
+        
+        // Luôn gửi thông báo để biết hệ thống hoạt động bình thường
+        sendTelegramMessage(message);
     } catch (error) {
         Logger.log('Lỗi khi gửi báo cáo hàng ngày: ' + error.toString());
     }
